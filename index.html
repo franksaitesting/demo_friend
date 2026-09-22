@@ -1,0 +1,727 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Demo Sender</title>
+  <style>
+/* Front sidebar plugins render in a narrow drawer (~320–420px). Keep it tight. */
+:root {
+  --bg: #ffffff;
+  --card: #f7f7f9;
+  --border: #e3e3e8;
+  --text: #1f2430;
+  --muted: #6b7280;
+  --accent: #5b3df5;
+  --accent-ink: #ffffff;
+  --ok: #16a34a;
+  --warn: #d97706;
+  --err: #dc2626;
+  --warn-bg: #fff7e6;
+  --radius: 8px;
+  font-size: 13px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #17181c;
+    --card: #1f2127;
+    --border: #2e3038;
+    --text: #e6e7eb;
+    --muted: #9aa0ab;
+    --accent: #8b74ff;
+    --warn-bg: #2a2416;
+  }
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+main { padding: 10px 12px 4px; display: grid; gap: 10px; }
+footer { padding: 8px 12px 14px; }
+
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg); z-index: 2; }
+.brand { display: flex; align-items: center; gap: 8px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); display: inline-block; }
+.dot.ok { background: var(--ok); }
+.dot.err { background: var(--err); }
+.dot.warn { background: var(--warn); }
+
+.muted { color: var(--muted); }
+.small { font-size: 12px; }
+.hint { display: block; color: var(--muted); font-size: 11.5px; margin-top: 2px; }
+
+.card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 0; }
+.card > summary, .card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; cursor: pointer; font-weight: 600; list-style: none; }
+.card > summary::-webkit-details-marker { display: none; }
+.card > summary::before { content: "▸"; color: var(--muted); margin-right: 6px; font-size: 11px; }
+.card[open] > summary::before { content: "▾"; }
+.card-head { cursor: default; padding-bottom: 4px; }
+.card-head .grow { flex: 1; font-weight: 500; }
+.card-body { padding: 4px 12px 12px; display: grid; gap: 10px; }
+section.card > p { margin: 0; padding: 0 12px 6px; }
+
+label { display: grid; gap: 4px; font-weight: 500; }
+label.check { display: flex; align-items: center; gap: 6px; font-weight: 400; }
+label.check .hint { display: inline; margin: 0; }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+input[type="text"], input[type="email"], select, textarea {
+  width: 100%; font: inherit; color: var(--text); background: var(--bg);
+  border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px;
+}
+textarea { resize: vertical; min-height: 60px; }
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+fieldset.toggles { border: 1px dashed var(--border); border-radius: 6px; padding: 8px 10px 10px; display: grid; gap: 6px; margin: 0; }
+legend { color: var(--muted); font-size: 12px; padding: 0 4px; }
+
+button { font: inherit; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text); padding: 6px 10px; cursor: pointer; }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+button.ghost { background: transparent; }
+button.tiny { padding: 2px 6px; font-size: 11px; }
+button:disabled { opacity: .5; cursor: not-allowed; }
+button.busy { position: relative; color: transparent; }
+button.busy::after { content: ""; position: absolute; inset: 0; margin: auto; width: 12px; height: 12px; border: 2px solid var(--accent-ink); border-right-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.callout { border-radius: 6px; padding: 8px 10px; font-size: 12px; }
+.callout.warn { background: var(--warn-bg); border: 1px solid var(--warn); }
+
+.run-banner { margin: 0 12px 6px; padding: 8px 10px; border-radius: 6px; background: var(--bg); border: 1px solid var(--border); font-size: 12px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.run-banner code { font-size: 12px; }
+
+.steps { list-style: none; margin: 0; padding: 0 12px 12px; display: grid; gap: 8px; }
+.step { border: 1px solid var(--border); border-radius: 6px; background: var(--bg); padding: 8px 10px; display: grid; gap: 6px; }
+.step.sent { border-color: var(--ok); }
+.step.optional .step-label::after { content: " · optional"; color: var(--muted); font-weight: 400; }
+.step-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.step-label { font-weight: 600; }
+.step-status { font-size: 11.5px; color: var(--muted); }
+.step-status.ok { color: var(--ok); }
+.step-status.err { color: var(--err); }
+.step details summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+.step .edit { display: grid; gap: 6px; margin-top: 6px; }
+.step .talk { font-size: 12px; color: var(--muted); border-left: 3px solid var(--border); padding-left: 8px; margin: 2px 0 0; }
+.step-actions { display: flex; gap: 6px; justify-content: flex-end; }
+
+.log { list-style: none; margin: 0; padding: 4px 12px 12px; display: grid; gap: 4px; font-size: 11.5px; max-height: 220px; overflow: auto; }
+.log li { display: grid; grid-template-columns: 52px 1fr; gap: 6px; }
+.log time { color: var(--muted); }
+.log .err { color: var(--err); }
+.log .ok { color: var(--ok); }
+a { color: var(--accent); }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--card); padding: 0 4px; border-radius: 4px; }
+
+</style>
+  <!-- Front Plugin SDK (UMD build) — exposes window.Front -->
+  <script src="https://dl.frontapp.com/libs/plugin-sdk-1.8.1.min.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="dot" id="statusDot" title="Checking connection…"></span>
+      <strong>Demo Sender</strong>
+    </div>
+    <div class="muted small" id="statusText">Connecting…</div>
+  </header>
+
+  <main>
+    <!-- ================= SETUP ================= -->
+    <details class="card" id="setupCard" open>
+      <summary>
+        <span>Setup</span>
+        <span class="muted small" id="setupSummary"></span>
+      </summary>
+      <div class="card-body">
+        <label>
+          Target inbox
+          <select id="inboxSelect"><option value="">Loading inboxes…</option></select>
+        </label>
+
+        <label>
+          Send to (channel address)
+          <select id="toSelect"><option value="">Pick an inbox first</option></select>
+          <input id="toCustom" type="email" placeholder="…or type an address" autocomplete="off" />
+          <span class="hint">Must match a channel on the inbox for the agent to reply.</span>
+        </label>
+
+        <div class="row">
+          <label>
+            Customer name
+            <input id="senderName" type="text" placeholder="Tobias Funke" autocomplete="off" />
+          </label>
+          <label>
+            Customer email
+            <input id="senderHandle" type="email" placeholder="customer@example.com" autocomplete="off" />
+          </label>
+        </div>
+        <div class="callout warn" id="identityNote" hidden></div>
+
+        <fieldset class="toggles">
+          <legend>Per-send options</legend>
+          <label class="check"><input type="checkbox" id="optRules" checked /> Run rules &amp; Autopilot <span class="hint">(off = quiet import)</span></label>
+          <label class="check"><input type="checkbox" id="optOpen" checked /> Leave conversation open <span class="hint">(off = archive on import)</span></label>
+          <label>
+            Tags to add (comma-separated, optional)
+            <input id="optTags" type="text" placeholder="demo, autopilot" autocomplete="off" />
+          </label>
+        </fieldset>
+      </div>
+    </details>
+
+    <!-- ================= SEQUENCE ================= -->
+    <section class="card">
+      <div class="card-head">
+        <label class="grow">
+          Demo sequence
+          <select id="sequenceSelect"></select>
+        </label>
+        <button class="ghost" id="resetRun" title="Forget the current conversation and start a fresh run">New run</button>
+      </div>
+      <p class="muted small" id="sequenceDescription"></p>
+      <div class="run-banner" id="runBanner" hidden></div>
+      <ol class="steps" id="steps"></ol>
+    </section>
+
+    <!-- ================= FREEFORM ================= -->
+    <details class="card">
+      <summary><span>Freeform email</span><span class="muted small">any subject / body</span></summary>
+      <div class="card-body">
+        <label>Subject <input id="ffSubject" type="text" autocomplete="off" /></label>
+        <label>Body <textarea id="ffBody" rows="6" placeholder="Hi there, quick question…"></textarea></label>
+        <label class="check"><input type="checkbox" id="ffThread" /> Thread into the current run's conversation</label>
+        <button class="primary" id="ffSend">Send freeform email</button>
+      </div>
+    </details>
+
+    <!-- ================= LOG ================= -->
+    <details class="card">
+      <summary><span>Activity log</span><button class="ghost tiny" id="clearLog" type="button">clear</button></summary>
+      <ul class="log" id="log"></ul>
+    </details>
+  </main>
+
+  <footer class="muted small">
+    Signed in as <span id="teammateName">…</span>. Emails are imported, not sent — nothing leaves Front.
+  </footer>
+
+  <script>window.DEMO_SENDER_API_URL = "https://franks.app.n8n.cloud/webhook/demo-sender-api";</script>
+<script>
+/* global Front */
+'use strict';
+
+/*
+ * Front Demo Sender — sidebar plugin
+ *
+ * Flow (mirrors the manual runs in the "Message endpoint setup" session):
+ *   Setup once  → inbox, channel address, customer persona, per-send options.
+ *   Pick a sequence → Email 1 starts a new conversation; the plugin captures
+ *   its conversation ID; Emails 2..n thread into it via conversation_id.
+ *   "New run" forgets the conversation so the next Email 1 starts fresh.
+ *
+ * All Front API calls go through one same-origin backend endpoint that takes
+ * POST { action, auth_secret, ...params }. Two backends implement it:
+ *   - n8n workflow (production): page served at /webhook/demo-sender,
+ *     API at /webhook/demo-sender-api
+ *   - server.js (local dev):      page served at /, API at /api
+ * The API URL is derived from the page URL so the same file works for both.
+ */
+
+const $ = (id) => document.getElementById(id);
+const STORAGE_KEY = 'front-demo-sender:v1';
+const API_URL = (() => {
+  // Static-host build: dist/build-static.js injects the absolute n8n webhook URL.
+  if (window.DEMO_SENDER_API_URL) return window.DEMO_SENDER_API_URL;
+  const p = location.pathname.replace(/\/index\.html$/, '');
+  return p.endsWith('/') ? `${p}api` : `${p}-api`;
+})();
+
+/* ------------------------------------------------------------------ */
+/* State                                                               */
+/* ------------------------------------------------------------------ */
+
+const state = {
+  settings: {
+    inbox_id: '',
+    to: '',
+    sender_name: '',
+    sender_handle: '',
+    run_rules: true,
+    leave_open: true,
+    tags: '',
+    sequence_id: '',
+  },
+  sequences: [],
+  defaults: {},
+  inboxes: [],
+  channels: [],
+  run: { conversation_id: null, sent: {} }, // sent[stepIndex] = { message_uid, conversation_id, at }
+  edits: {},                                 // edits[sequenceId][stepIndex] = { subject, body }
+  authSecret: new URLSearchParams(location.search).get('auth_secret') || '',
+};
+
+function save() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ settings: state.settings, run: state.run, edits: state.edits }));
+  } catch { /* storage unavailable in some embeds — fine */ }
+}
+function load() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    Object.assign(state.settings, saved.settings || {});
+    state.run = saved.run || state.run;
+    state.edits = saved.edits || {};
+  } catch { /* ignore */ }
+}
+
+/* ------------------------------------------------------------------ */
+/* API                                                                 */
+/* ------------------------------------------------------------------ */
+
+async function api(action, params = {}) {
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, auth_secret: state.authSecret, ...params }),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || `${res.status} ${res.statusText}`);
+  return json;
+}
+
+/* ------------------------------------------------------------------ */
+/* Log                                                                 */
+/* ------------------------------------------------------------------ */
+
+function log(text, kind) {
+  const li = document.createElement('li');
+  const t = document.createElement('time');
+  t.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const span = document.createElement('span');
+  if (kind) span.className = kind;
+  span.textContent = text;
+  li.append(t, span);
+  $('log').prepend(li);
+}
+
+/* ------------------------------------------------------------------ */
+/* Setup UI                                                            */
+/* ------------------------------------------------------------------ */
+
+function bindSettings() {
+  const s = state.settings;
+  $('senderName').value = s.sender_name;
+  $('senderHandle').value = s.sender_handle;
+  $('optRules').checked = s.run_rules;
+  $('optOpen').checked = s.leave_open;
+  $('optTags').value = s.tags;
+
+  $('senderName').addEventListener('input', (e) => { s.sender_name = e.target.value; save(); renderSteps(); });
+  $('senderHandle').addEventListener('input', (e) => { s.sender_handle = e.target.value; save(); updateSetupSummary(); });
+  $('optRules').addEventListener('change', (e) => { s.run_rules = e.target.checked; save(); });
+  $('optOpen').addEventListener('change', (e) => { s.leave_open = e.target.checked; save(); });
+  $('optTags').addEventListener('input', (e) => { s.tags = e.target.value; save(); });
+
+  $('inboxSelect').addEventListener('change', async (e) => {
+    s.inbox_id = e.target.value; save();
+    await loadChannels();
+    updateSetupSummary();
+  });
+  $('toSelect').addEventListener('change', (e) => {
+    if (e.target.value) { s.to = e.target.value; $('toCustom').value = ''; save(); updateSetupSummary(); }
+  });
+  $('toCustom').addEventListener('input', (e) => {
+    if (e.target.value) { s.to = e.target.value.trim(); $('toSelect').value = ''; save(); updateSetupSummary(); }
+  });
+}
+
+function updateSetupSummary() {
+  const s = state.settings;
+  const inbox = state.inboxes.find((i) => i.id === s.inbox_id);
+  const parts = [];
+  if (inbox) parts.push(inbox.name);
+  if (s.to) parts.push(`→ ${s.to}`);
+  $('setupSummary').textContent = parts.join(' ');
+  const ready = Boolean(s.inbox_id && s.to && s.sender_handle);
+  document.querySelectorAll('.send-btn').forEach((b) => { b.disabled = !ready || b.dataset.locked === '1'; });
+  $('ffSend').disabled = !ready;
+}
+
+function renderInboxes(inboxes) {
+  try {
+    state.inboxes = inboxes;
+    const sel = $('inboxSelect');
+    sel.innerHTML = '<option value="">Select an inbox…</option>';
+    for (const i of inboxes) {
+      const o = document.createElement('option');
+      o.value = i.id;
+      o.textContent = i.name + (i.is_private ? ' (private)' : '');
+      sel.append(o);
+    }
+    if (state.settings.inbox_id && inboxes.some((i) => i.id === state.settings.inbox_id)) {
+      sel.value = state.settings.inbox_id;
+      loadChannels().then(updateSetupSummary);
+    }
+  } catch (e) {
+    $('inboxSelect').innerHTML = '<option value="">Could not load inboxes</option>';
+    log(`Inboxes: ${e.message}`, 'err');
+  }
+  updateSetupSummary();
+}
+
+async function loadChannels() {
+  const sel = $('toSelect');
+  sel.innerHTML = '<option value="">Loading channels…</option>';
+  state.channels = [];
+  if (!state.settings.inbox_id) { sel.innerHTML = '<option value="">Pick an inbox first</option>'; return; }
+  try {
+    const { channels } = await api('channels', { inbox_id: state.settings.inbox_id });
+    state.channels = channels.filter((c) => c.address);
+    sel.innerHTML = state.channels.length ? '<option value="">Choose a channel address…</option>' : '<option value="">No channels on this inbox</option>';
+    for (const c of state.channels) {
+      const o = document.createElement('option');
+      o.value = c.address;
+      o.textContent = `${c.address}${c.name ? ` — ${c.name}` : ''}`;
+      sel.append(o);
+    }
+    // Auto-pick: keep saved address if it's on this inbox, else first channel.
+    if (state.channels.some((c) => c.address === state.settings.to)) sel.value = state.settings.to;
+    else if (state.channels.length && !$('toCustom').value) { sel.value = state.channels[0].address; state.settings.to = sel.value; save(); }
+  } catch (e) {
+    sel.innerHTML = '<option value="">Could not load channels</option>';
+    log(`Channels: ${e.message}`, 'err');
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Sequences                                                           */
+/* ------------------------------------------------------------------ */
+
+function renderSequences(data) {
+  try {
+    state.sequences = data.sequences || [];
+    state.defaults = data.defaults || {};
+    // Seed persona from defaults if the rep hasn't set one yet.
+    if (!state.settings.sender_name && state.defaults.sender_name) { state.settings.sender_name = state.defaults.sender_name; $('senderName').value = state.settings.sender_name; }
+    if (!state.settings.sender_handle && state.defaults.sender_handle) { state.settings.sender_handle = state.defaults.sender_handle; $('senderHandle').value = state.settings.sender_handle; }
+    if (state.defaults._note) { $('identityNote').textContent = state.defaults._note; $('identityNote').hidden = false; }
+    save();
+
+    const sel = $('sequenceSelect');
+    sel.innerHTML = '';
+    for (const sq of state.sequences) {
+      const o = document.createElement('option');
+      o.value = sq.id; o.textContent = sq.name; sel.append(o);
+    }
+    if (!state.sequences.some((q) => q.id === state.settings.sequence_id)) state.settings.sequence_id = state.sequences[0] ? state.sequences[0].id : '';
+    sel.value = state.settings.sequence_id;
+    sel.addEventListener('change', (e) => { state.settings.sequence_id = e.target.value; save(); renderSteps(); });
+    renderSteps();
+  } catch (e) {
+    log(`Sequences: ${e.message}`, 'err');
+  }
+}
+
+function currentSequence() {
+  return state.sequences.find((q) => q.id === state.settings.sequence_id) || null;
+}
+
+function fill(text) {
+  return String(text || '').replace(/\{\{\s*sender_name\s*\}\}/g, state.settings.sender_name || 'there');
+}
+
+function stepContent(seq, idx) {
+  const step = seq.steps[idx];
+  const edit = (state.edits[seq.id] || {})[idx] || {};
+  return {
+    subject: edit.subject !== undefined ? edit.subject : fill(step.subject),
+    body: edit.body !== undefined ? edit.body : fill(step.body),
+  };
+}
+
+function renderSteps() {
+  const seq = currentSequence();
+  const list = $('steps');
+  list.innerHTML = '';
+  $('sequenceDescription').textContent = seq ? seq.description || '' : '';
+  renderRunBanner();
+  if (!seq) return;
+
+  seq.steps.forEach((step, idx) => {
+    const sent = state.run.sent[idx];
+    const li = document.createElement('li');
+    li.className = 'step' + (sent ? ' sent' : '') + (step.optional ? ' optional' : '');
+
+    const head = document.createElement('div');
+    head.className = 'step-head';
+    const label = document.createElement('span');
+    label.className = 'step-label';
+    label.textContent = `${idx + 1}. ${step.label || step.subject}`;
+    const status = document.createElement('span');
+    status.className = 'step-status' + (sent ? ' ok' : '');
+    status.id = `status-${idx}`;
+    status.textContent = sent ? `sent ${new Date(sent.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : (idx === 0 ? 'starts a new conversation' : 'threads into email 1');
+    head.append(label, status);
+
+    const details = document.createElement('details');
+    const summary = document.createElement('summary');
+    summary.textContent = 'View / edit email';
+    const edit = document.createElement('div');
+    edit.className = 'edit';
+    const { subject, body } = stepContent(seq, idx);
+    const subj = document.createElement('input');
+    subj.type = 'text'; subj.value = subject; subj.placeholder = 'Subject';
+    const bodyEl = document.createElement('textarea');
+    bodyEl.rows = 7; bodyEl.value = body;
+    const onEdit = () => {
+      state.edits[seq.id] = state.edits[seq.id] || {};
+      state.edits[seq.id][idx] = { subject: subj.value, body: bodyEl.value };
+      save();
+    };
+    subj.addEventListener('input', onEdit);
+    bodyEl.addEventListener('input', onEdit);
+    const revert = document.createElement('button');
+    revert.className = 'ghost tiny'; revert.type = 'button'; revert.textContent = 'Revert to default';
+    revert.addEventListener('click', () => {
+      if (state.edits[seq.id]) delete state.edits[seq.id][idx];
+      save(); renderSteps();
+    });
+    edit.append(subj, bodyEl, revert);
+    details.append(summary, edit);
+
+    const actions = document.createElement('div');
+    actions.className = 'step-actions';
+    const btn = document.createElement('button');
+    btn.className = 'primary send-btn';
+    btn.textContent = sent ? 'Send again' : (idx === 0 ? 'Send email 1' : `Send email ${idx + 1}`);
+    // Later steps need a conversation to thread into.
+    const needsConv = idx > 0 && !state.run.conversation_id;
+    btn.dataset.locked = needsConv ? '1' : '0';
+    if (needsConv) btn.title = 'Send email 1 first — this one threads into its conversation.';
+    btn.addEventListener('click', () => sendStep(seq, idx, btn, status));
+    actions.append(btn);
+
+    li.append(head);
+    if (step.talk_track) {
+      const talk = document.createElement('p');
+      talk.className = 'talk';
+      talk.textContent = step.talk_track;
+      li.append(talk);
+    }
+    li.append(details, actions);
+    list.append(li);
+  });
+  updateSetupSummary();
+}
+
+function renderRunBanner() {
+  const b = $('runBanner');
+  b.innerHTML = '';
+  if (!state.run.conversation_id) {
+    // Email 1 was accepted but Front hasn't exposed the conversation yet:
+    // offer a retry and a manual paste so the rep is never stuck mid-demo.
+    if (!state.run.pending_uid) { b.hidden = true; return; }
+    b.hidden = false;
+    const left = document.createElement('span');
+    left.textContent = 'Email 1 accepted — conversation not located yet.';
+    const locate = document.createElement('button');
+    locate.className = 'ghost tiny'; locate.type = 'button'; locate.textContent = 'Locate';
+    locate.addEventListener('click', async () => {
+      locate.disabled = true;
+      const id = await resolveConversation(state.run.pending_uid, { attempts: 4, delayMs: 1500 }).catch(() => null);
+      if (id) { state.run.conversation_id = id; state.run.pending_uid = null; save(); renderSteps(); log(`Located conversation ${id}.`, 'ok'); }
+      else { locate.disabled = false; log('Still not visible. Paste the cnv_… ID from Front instead.', 'err'); }
+    });
+    const paste = document.createElement('input');
+    paste.type = 'text'; paste.placeholder = 'cnv_…'; paste.style.width = '110px';
+    paste.addEventListener('change', () => {
+      const v = paste.value.trim();
+      if (/^cnv_[a-z0-9]+$/i.test(v)) { state.run.conversation_id = v; state.run.pending_uid = null; save(); renderSteps(); log(`Using conversation ${v}.`, 'ok'); }
+    });
+    b.append(left, locate, paste);
+    return;
+  }
+  b.hidden = false;
+  const left = document.createElement('span');
+  left.append('Current run: ');
+  const code = document.createElement('code');
+  code.textContent = state.run.conversation_id;
+  left.append(code);
+  const open = document.createElement('button');
+  open.className = 'ghost tiny'; open.type = 'button'; open.textContent = 'Open in Front';
+  open.addEventListener('click', () => openConversation(state.run.conversation_id));
+  b.append(left, open);
+}
+
+/* ------------------------------------------------------------------ */
+/* Sending                                                             */
+/* ------------------------------------------------------------------ */
+
+function buildImportBody({ subject, body, thread }) {
+  const s = state.settings;
+  return {
+    inbox_id: s.inbox_id,
+    sender: { name: s.sender_name || undefined, handle: s.sender_handle },
+    to: [s.to],
+    subject,
+    body,
+    run_rules: s.run_rules,
+    leave_open: s.leave_open,
+    tags: s.tags.split(',').map((t) => t.trim()).filter(Boolean),
+    conversation_id: thread ? state.run.conversation_id : undefined,
+  };
+}
+
+// Import is async on Front's side. Poll a few times, spaced out — each poll is
+// one backend execution, so favor fewer, longer waits.
+async function resolveConversation(messageUid, { attempts = 8, delayMs = 4000 } = {}) {
+  for (let i = 0; i < attempts; i++) {
+    await new Promise((r) => setTimeout(r, delayMs));
+    const r = await api('resolve', { message_uid: messageUid });
+    if (r.ready) return r.conversation_id;
+  }
+  return null;
+}
+
+async function sendStep(seq, idx, btn, statusEl) {
+  const thread = idx > 0;
+  if (thread && !state.run.conversation_id) return;
+  const { subject, body } = stepContent(seq, idx);
+  btn.classList.add('busy'); btn.disabled = true;
+  statusEl.className = 'step-status'; statusEl.textContent = 'importing…';
+  try {
+    const res = await api('import', buildImportBody({ subject, body, thread }));
+    log(`Email ${idx + 1} accepted (uid ${res.message_uid})${thread ? ` → threaded into ${state.run.conversation_id}` : ''}`, 'ok');
+
+    let convId = thread ? state.run.conversation_id : null;
+    if (!thread) {
+      statusEl.textContent = 'accepted — locating conversation…';
+      // A fresh email 1 always starts a new run.
+      state.run = { conversation_id: null, sent: {}, pending_uid: res.message_uid };
+      convId = await resolveConversation(res.message_uid);
+      if (convId) {
+        state.run.conversation_id = convId;
+        state.run.pending_uid = null;
+        log(`Email 1 created conversation ${convId}. Emails 2+ will thread into it.`, 'ok');
+      } else {
+        log('Accepted, but Front has not surfaced the conversation yet. Use "Locate" in a moment or paste the ID from Front.', 'err');
+      }
+    }
+    state.run.sent[idx] = { message_uid: res.message_uid, conversation_id: convId, at: Date.now() };
+    save();
+    renderSteps();
+    notify(`Email ${idx + 1} sent${convId ? ` → ${convId}` : ''}`);
+  } catch (e) {
+    statusEl.className = 'step-status err'; statusEl.textContent = e.message;
+    log(`Email ${idx + 1} failed: ${e.message}`, 'err');
+  } finally {
+    btn.classList.remove('busy'); btn.disabled = false;
+  }
+}
+
+async function sendFreeform() {
+  const subject = $('ffSubject').value.trim();
+  const body = $('ffBody').value.trim();
+  const thread = $('ffThread').checked && Boolean(state.run.conversation_id);
+  if (!body) { log('Freeform: body is required.', 'err'); return; }
+  const btn = $('ffSend');
+  btn.classList.add('busy'); btn.disabled = true;
+  try {
+    const res = await api('import', buildImportBody({ subject: subject || 'Need help', body, thread }));
+    log(`Freeform accepted (uid ${res.message_uid})${thread ? ` → threaded into ${state.run.conversation_id}` : ''}`, 'ok');
+    if (!thread) {
+      const convId = await resolveConversation(res.message_uid);
+      if (convId) {
+        state.run.conversation_id = convId; state.run.sent = {};
+        save(); renderSteps();
+        log(`Freeform created conversation ${convId}. It is now the current run.`, 'ok');
+      }
+    }
+    notify('Freeform email sent');
+  } catch (e) {
+    log(`Freeform failed: ${e.message}`, 'err');
+  } finally {
+    btn.classList.remove('busy'); btn.disabled = false;
+  }
+}
+
+function resetRun() {
+  state.run = { conversation_id: null, sent: {} };
+  save(); renderSteps();
+  log('New run started — the next email 1 will open a fresh conversation.');
+}
+
+/* ------------------------------------------------------------------ */
+/* Front Plugin SDK integration                                        */
+/* ------------------------------------------------------------------ */
+
+let frontContext = null;
+
+function initFront() {
+  if (typeof Front === 'undefined' || !Front.contextUpdates) {
+    $('teammateName').textContent = 'unknown (SDK not loaded — open inside Front)';
+    return;
+  }
+  Front.contextUpdates.subscribe((ctx) => {
+    frontContext = ctx;
+    const name = ctx && ctx.teammate && ctx.teammate.name;
+    $('teammateName').textContent = name || 'a Front teammate';
+  });
+}
+
+function openConversation(convId) {
+  // Internal Front URLs open the resource in Front itself via the SDK.
+  // The plugin runs in a sandboxed iframe, so window.open would be blocked.
+  const url = `https://app.frontapp.com/open/${convId}`;
+  if (frontContext && typeof frontContext.openUrl === 'function') frontContext.openUrl(url).catch(() => {});
+  else if (typeof Front !== 'undefined' && typeof Front.openUrl === 'function') Front.openUrl(url).catch(() => {});
+  else log(`Open in Front: ${url}`);
+}
+
+function notify(message) {
+  // The SDK's displayNotification is voice-call only, so we surface status in the plugin itself.
+  const el = $('statusText');
+  const previous = el.textContent;
+  el.textContent = message;
+  setTimeout(() => { if (el.textContent === message) el.textContent = previous; }, 4000);
+}
+
+/* ------------------------------------------------------------------ */
+/* Boot                                                                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * One round trip does everything the plugin needs at open: verifies the
+ * backend + token, and returns the sequences and inbox list.
+ */
+async function checkHealth() {
+  const dot = $('statusDot'); const text = $('statusText');
+  try {
+    const h = await api('bootstrap');
+    if (!h.ok) { dot.className = 'dot err'; text.textContent = h.error || 'Front token rejected'; return h; }
+    dot.className = 'dot ok'; text.textContent = h.company ? `Connected · ${h.company}` : 'Connected to Front';
+    return h;
+  } catch (e) {
+    dot.className = 'dot err';
+    text.textContent = /unauthori[sz]ed|auth_secret/i.test(e.message) ? 'Auth secret missing or wrong' : `Backend unreachable: ${e.message}`;
+    return { ok: false, error: e.message };
+  }
+}
+
+(async function boot() {
+  load();
+  bindSettings();
+  initFront();
+  $('resetRun').addEventListener('click', resetRun);
+  $('ffSend').addEventListener('click', sendFreeform);
+  $('clearLog').addEventListener('click', (e) => { e.preventDefault(); $('log').innerHTML = ''; });
+
+  const h = await checkHealth();
+  if (h.sequences) renderSequences(h);
+  if (h.ok && h.inboxes) renderInboxes(h.inboxes);
+  else $('inboxSelect').innerHTML = '<option value="">Unavailable until connected</option>';
+  if (state.settings.inbox_id && state.settings.to) $('setupCard').open = false;
+})();
+
+</script>
+</body>
+</html>
